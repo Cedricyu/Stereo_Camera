@@ -129,7 +129,7 @@ while True:
         cv2.imwrite("rectified_right.png", rectR)
 
         # 儲存 R/T
-        save_stereo_parameters("calibration/stereo_camera.yaml", mtxL, distL, mtxR, distR, R, T)
+        save_stereo_parameters("../../configs/stereo_camera.yaml", mtxL, distL, mtxR, distR, R, T)
         print("[INFO] 已儲存到 stereo_camera.yaml")
         break
 
