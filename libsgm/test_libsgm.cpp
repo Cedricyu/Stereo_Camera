@@ -1,5 +1,6 @@
 #include <opencv2/opencv.hpp>
-#include <libsgm.h>
+#include "libsgm_wrapper.h"   // 用 wrapper
+#include <libsgm.h>           // 為了讀 SUBPIXEL_SCALE
 #include <iostream>
 #include "cnpy.h"
 
@@ -20,52 +21,75 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    const int width  = left.cols;
-    const int height = left.rows;
-    const int disp_size = 256; // 你的 max disparity
-
-    // libSGM 輸出 16-bit disparity（含 4-bit 小數）
-    cv::Mat disp16u(height, width, CV_16U);
-
-    sgm::StereoSGM ssgm(
-        width,
-        height,
-        disp_size,
-        8,   // input depth bits
-        16,  // output depth bits
-        sgm::EXECUTE_INOUT_HOST2HOST
+    // --- 1) 建立 Wrapper（可依需要調參） ---
+    const int numDisp = 128;  // 必為 16 的倍數
+    const bool useSubpixel = true;
+    sgm::LibSGMWrapper sgmw(
+        /*numDisparity=*/numDisp,
+        /*P1=*/10,
+        /*P2=*/120,
+        /*uniquenessRatio=*/0.95f,
+        /*subpixel=*/useSubpixel,
+        /*pathType=*/sgm::PathType::SCAN_8PATH,
+        /*minDisparity=*/0,
+        /*lrMaxDiff=*/1,
+        /*censusType=*/sgm::CensusType::SYMMETRIC_CENSUS_9x7
     );
-    ssgm.execute(left.data, right.data, disp16u.data);
 
-    // 轉成 32F 並把 4-bit 小數縮回真實像素（常見是 /16.0）
-    cv::Mat disp32f;
-    disp16u.convertTo(disp32f, CV_32F, 1.0 / 16.0);
+    // --- 2) 執行：輸出是 CV_16S（固定小數，若 subpixel=true） ---
+    cv::Mat disp16s;  // 不用先配置，wrapper 會幫你配置
+    sgmw.execute(left, right, disp16s);
 
-    // 建立有效遮罩：>0 且 < disp_size（單位：像素）
-    // 視情況你也可以用 >=1e-3 避免極小噪聲
-    cv::Mat mask = (disp32f > 0.0f) & (disp32f < static_cast<float>(disp_size));
+    // --- 3) 轉成 float 視差（像素單位），並處理 invalid/minDisp ---
+    const int invalid = sgmw.getInvalidDisparity();
+    const int minDisp = sgmw.getMinDisparity();
+    const int SUB = sgm::StereoSGM::SUBPIXEL_SCALE;  // 通常 16
 
-    // 統計有效範圍
-    double minVal = 0.0, maxVal = 0.0;
-    cv::minMaxLoc(disp32f, &minVal, &maxVal, nullptr, nullptr, mask);
-    std::cout << "Filtered disparity range: " << minVal << " ~ " << maxVal << std::endl;
-
-    // 線性映射到 0~255（僅針對 mask 區域做 normalize）
-    cv::Mat disp8u = cv::Mat::zeros(disp32f.size(), CV_8U);
-    if (maxVal > minVal) {
-        cv::Mat disp8u_tmp;
-        // normalize 支援 mask；僅計算/輸出 mask 內像素
-        cv::normalize(disp32f, disp8u_tmp, 0, 255, cv::NORM_MINMAX, CV_8U, mask);
-        disp8u_tmp.copyTo(disp8u, mask);  // 寫回可視化圖
+    cv::Mat disp32f(disp16s.size(), CV_32F, 0.0f);
+    for (int y=0; y<disp16s.rows; ++y) {
+        const short* src = disp16s.ptr<short>(y);
+        float* dst = disp32f.ptr<float>(y);
+        for (int x=0; x<disp16s.cols; ++x) {
+            short v = src[x];
+            if (v == invalid) { dst[x] = 0.0f; continue; } // 你也可用 NaN
+            float d = static_cast<float>(v);
+            if (useSubpixel) d /= static_cast<float>(SUB); // 固定小數 -> 像素
+            d += static_cast<float>(minDisp);              // 若 minDisp!=0 要加回
+            dst[x] = d;
+        }
     }
 
-    // 存圖
-    cv::imwrite("disp_result.png", disp8u);
-    std::cout << "Saved disparity map to disp_result.png" << std::endl;
+    // --- 4) 建立有效遮罩（>0）並統計範圍 ---
+    cv::Mat mask = (disp32f > 0.0f);
+    double minVal=0.0, maxVal=0.0;
+    if (cv::countNonZero(mask) > 0) {
+        cv::minMaxLoc(disp32f, &minVal, &maxVal, nullptr, nullptr, mask);
+        std::cout << "Filtered disparity range: " << minVal << " ~ " << maxVal << std::endl;
+    } else {
+        std::cout << "No valid disparities.\n";
+    }
 
-    std::vector<unsigned long> shape = { (unsigned long)disp32f.rows, (unsigned long)disp32f.cols };
-    cnpy::npy_save("disp_float.npy", disp32f.ptr<float>(), shape, "w");
-    std::cout << "Saved disparity map to disp_float.npy" << std::endl;
+    // --- 5) 視覺化（0~255，僅針對有效區域 normalize） ---
+    cv::Mat disp8u = cv::Mat::zeros(disp32f.size(), CV_8U);
+    if (maxVal > minVal) {
+        cv::Mat tmp8u;
+        cv::normalize(disp32f, tmp8u, 0, 255, cv::NORM_MINMAX, CV_8U, mask);
+        tmp8u.copyTo(disp8u, mask);
+    }
+    cv::imwrite("disp_result.png", disp8u);
+    std::cout << "Saved disparity map to disp_result.png\n";
+
+    // --- 6) 存 NPY（float 像素視差；invalid=0） ---
+    // 若要用 NaN 標 invalid，可先把 mask 反轉後設成 NaN
+    // disp32f.setTo(std::numeric_limits<float>::quiet_NaN(), ~mask);
+    std::vector<unsigned long> shape = {
+        static_cast<unsigned long>(disp32f.rows),
+        static_cast<unsigned long>(disp32f.cols)
+    };
+    // 確保連續（通常是連續的）
+    cv::Mat disp32f_cont = disp32f.isContinuous() ? disp32f : disp32f.clone();
+    cnpy::npy_save("disp_float.npy", disp32f_cont.ptr<float>(), shape, "w");
+    std::cout << "Saved disparity map to disp_float.npy\n";
 
     return 0;
 }

@@ -3,6 +3,7 @@ import numpy as np
 import ctypes
 import os
 import argparse
+# import matplotlib.pyplot as plt
 
 def compute_disparity(imgL, imgR, disparities=144):
     """
@@ -35,11 +36,18 @@ def compute_disparity(imgL, imgR, disparities=144):
     )
 
     disparity = stereo.compute(imgL, imgR).astype(np.float32) / 16
+
+    # plt.hist(disparity[disparity > 0].ravel(), bins=50)
+    # plt.title("Disparity Histogram")
+    # plt.xlabel("Disparity")
+    # plt.ylabel("Pixel Count")
+    # plt.show()
+
     return disparity
 
 
 try:
-    _libsgm = ctypes.CDLL('./libsgm_wrapper.so')  # 路徑視情況修改
+    _libsgm = ctypes.CDLL('../libsgm/libsgm_wrapper.so')  # 路徑視情況修改
 
     _libsgm.compute_disparity_from_buffer.argtypes = [
         ctypes.POINTER(ctypes.c_ubyte),

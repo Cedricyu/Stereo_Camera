@@ -3,7 +3,7 @@ import numpy as np
 import argparse
 
 def disparity_to_pointcloud(disp, left_bgr, fx, fy, cx, cy, baseline_m,
-                            max_depth=100, out_ply="cloud.ply"):
+                            max_depth=5, out_ply="cloud.ply"):
     """
     disp: disparity map (float32, already /16 if from OpenCV SGBM)
     left_bgr: 左影像 (H,W,3)
@@ -18,7 +18,7 @@ def disparity_to_pointcloud(disp, left_bgr, fx, fy, cx, cy, baseline_m,
 
     # 轉成 3D 座標
     points_3D = cv2.reprojectImageTo3D(disp, Q)
-    mask = disp > 0
+    mask = disp > 0.2
     mask &= (points_3D[...,2] < max_depth)
 
     pts = points_3D[mask]
@@ -64,4 +64,4 @@ if __name__ == "__main__":
     left_bgr = cv2.imread(args.left, cv2.IMREAD_UNCHANGED)
 
     disparity_to_pointcloud(disparity, left_bgr, fx, fy, cx, cy, baseline_m, max_depth=args.max_depth,
-                            out_ply="cloud.ply")
+                            out_ply="../outputs/pointcloud/cloud.ply")

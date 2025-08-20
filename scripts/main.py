@@ -6,11 +6,11 @@ from compute_disparity import compute_disparity, compute_disparity_libsgm
 from compute_cloud import compute_pointcloud, save_pointcloud_ply, visualize_pointcloud
 import os
 
-save_dir = "snapshots"
+save_dir = "../outputs/snapshots"
 os.makedirs(save_dir, exist_ok=True)
 
 # 1. 讀取 stereo_camera.yaml
-stereo_yaml_path = "calibration/stereo_camera.yaml"
+stereo_yaml_path = "../configs/stereo_camera.yaml"
 mtxL, distL, mtxR, distR, R, T = load_stereo_parameters(stereo_yaml_path)
 
 image_size = (640, 480)
@@ -65,7 +65,7 @@ while True:
     rectR_color = cv2.remap(frameR, right_map1, right_map2, interpolation=cv2.INTER_LINEAR)
 
     # Disparity
-    disparity = compute_disparity_libsgm(rectL, rectR)
+    disparity = compute_disparity(rectL, rectR)
 
     # Normalize for visualization
     disp_vis = cv2.normalize(disparity, None, 0, 255, cv2.NORM_MINMAX)

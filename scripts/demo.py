@@ -7,11 +7,11 @@ from compute_cloud import compute_pointcloud, save_pointcloud_ply, visualize_poi
 import os
 import time
 
-save_dir = "video"
+save_dir = "../outputs/video"
 os.makedirs(save_dir, exist_ok=True)
 
 # 1. 讀取 stereo_camera.yaml
-stereo_yaml_path = "calibration/stereo_camera.yaml"
+stereo_yaml_path = "../configs/stereo_camera.yaml"
 mtxL, distL, mtxR, distR, R, T = load_stereo_parameters(stereo_yaml_path)
 
 image_size = (640, 480)
