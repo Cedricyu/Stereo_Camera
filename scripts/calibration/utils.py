@@ -2,6 +2,7 @@ import cv2
 
 def load_stereo_parameters(path):
     fs = cv2.FileStorage(path, cv2.FILE_STORAGE_READ)
+    print("fs:", fs.isOpened())
     mtxL = fs.getNode("camera_matrix_left").mat()
     distL = fs.getNode("dist_coeffs_left").mat()
     mtxR = fs.getNode("camera_matrix_right").mat()

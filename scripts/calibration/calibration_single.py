@@ -6,8 +6,8 @@ from glob import glob
 CHESSBOARD_SIZE = (9, 6)
 SQUARE_SIZE = 0.21
 STEREO_FOLDER = "/home/aibox/itri/camera_calibration/captures"  # 放左右合併影像的資料夾
-LEFT_FOLDER = "../camera_calibration/captured_frames_left"
-RIGHT_FOLDER = "../camera_calibration/captured_frames_right"
+LEFT_FOLDER = "../../outputs/captured_frames_left"
+RIGHT_FOLDER = "../../outputs/captured_frames_right"
 
 RECTIFIED_LEFT_DIR = "rectified_left"
 RECTIFIED_RIGHT_DIR = "rectified_right"
@@ -220,8 +220,28 @@ if __name__ == "__main__":
 
     # objpoints, imgpoints_left, imgpoints_right, img_size = find_chessboard_points(image_paths, objp)
 
-    # _, _, img_size, mtxL, distL = left
-    # _, _, _, mtxR, distR = right
+    _, _, img_size, mtxL, distL = left
+    _, _, _, mtxR, distR = right
+
+
+    yaml_path = "../../configs/stereo_camera_1080p.yaml"
+    fs = cv2.FileStorage(yaml_path, cv2.FILE_STORAGE_WRITE)
+
+    # 左右相機內參
+    fs.write("camera_matrix_left", mtxL)
+    fs.write("dist_coeffs_left", distL)
+    fs.write("camera_matrix_right", mtxR)
+    fs.write("dist_coeffs_right", distR)
+
+    # 假設 stereoCalibrate 有執行，下面是你得到的 R, T
+    # R: rotation matrix (3x3)
+    # T: translation vector (3x1)
+    # fs.write("R", R)
+    # fs.write("T", T)
+
+    fs.release()
+    print(f"[✓] 相機參數已儲存至 {yaml_path}")
+
 
     # print("image size:", img_size)
     # mtxL, distL, mtxR, distR, R, T = stereo_calibration(

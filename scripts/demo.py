@@ -1,7 +1,7 @@
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from utils import load_stereo_parameters
+from scripts.calibration.utils import load_stereo_parameters
 from compute_disparity import compute_disparity, compute_disparity_libsgm
 from compute_cloud import compute_pointcloud, save_pointcloud_ply, visualize_pointcloud
 import os

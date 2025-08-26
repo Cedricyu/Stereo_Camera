@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from utils import load_stereo_parameters, save_stereo_parameters
+from camera_utils import setup_camera   
 
 import os
 os.makedirs("captures", exist_ok=True)
@@ -19,17 +20,15 @@ objpoints = []
 imgpoints_left = []
 imgpoints_right = []
 
+config_file = "../../configs/stereo_camera_1080p.yaml"
+
 # 載入左右相機內參（stereo_camera.yaml，R/T 不存在也沒關係）
-mtxL, distL, mtxR, distR, _, _ = load_stereo_parameters("calibration/stereo_camera.yaml")
+mtxL, distL, mtxR, distR, _, _ = load_stereo_parameters(config_file)
+print("Left Camera Matrix:\n", mtxL)
 
 # 開啟左右相機（調整索引為實際相機）
-capL = cv2.VideoCapture(0)  # /dev/video0
-capR = cv2.VideoCapture(2)  # /dev/video2
-
-capL.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-capL.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-capR.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-capR.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+capL = setup_camera(0, frame_width=1600, frame_height=1200) # /dev/video0
+capR = setup_camera(2, frame_width=1600, frame_height=1200)  # /dev/video2
 
 print("[INFO] 按空白鍵擷取一組圖像角點。擷取完成後按 Enter ⏎ 執行 stereo calibration。")
 
@@ -117,19 +116,20 @@ while True:
 
         # 畫水平輔助線
         vis = np.hstack((rectL, rectR))
-        for y in range(0, vis.shape[0], 40):
-            cv2.line(vis, (0, y), (vis.shape[1], y), (0, 255, 0), 1)
-        cv2.imshow("Rectified Stereo View", vis)
+        scaled_frame = cv2.resize(vis, (1280, 360))  # 或 (frame_width // 2, frame_height // 2)
+        for y in range(0, scaled_frame.shape[0], 40):
+            cv2.line(scaled_frame, (0, y), (scaled_frame.shape[1], y), (0, 255, 0), 1)
+        cv2.imshow("Rectified Stereo View", scaled_frame)
         cv2.waitKey(0)
 
         rectL = cv2.cvtColor(rectL, cv2.COLOR_BGR2GRAY)
         rectR = cv2.cvtColor(rectR, cv2.COLOR_BGR2GRAY)
         # 存檔
-        cv2.imwrite("rectified_left.png", rectL)
-        cv2.imwrite("rectified_right.png", rectR)
+        cv2.imwrite("../../outputs/rectified_left.png", rectL)
+        cv2.imwrite("../../outputs/rectified_right.png", rectR)
 
         # 儲存 R/T
-        save_stereo_parameters("../../configs/stereo_camera.yaml", mtxL, distL, mtxR, distR, R, T)
+        save_stereo_parameters(config_file, mtxL, distL, mtxR, distR, R, T)
         print("[INFO] 已儲存到 stereo_camera.yaml")
         break
 
