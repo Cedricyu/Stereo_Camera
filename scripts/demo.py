@@ -1,7 +1,8 @@
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from scripts.calibration.utils import load_stereo_parameters
+from calibration.camera_utils import setup_camera
+from calibration.utils import load_stereo_parameters
 from compute_disparity import compute_disparity, compute_disparity_libsgm
 from compute_cloud import compute_pointcloud, save_pointcloud_ply, visualize_pointcloud
 import os
@@ -11,20 +12,14 @@ save_dir = "../outputs/video"
 os.makedirs(save_dir, exist_ok=True)
 
 # 1. 讀取 stereo_camera.yaml
-stereo_yaml_path = "../configs/stereo_camera.yaml"
+stereo_yaml_path = "../configs/stereo_camera_720p.yaml"
 mtxL, distL, mtxR, distR, R, T = load_stereo_parameters(stereo_yaml_path)
 
-image_size = (640, 480)
+image_size = (1080, 720)
 
 # Open camera devices (modify indices if needed)
-capL = cv2.VideoCapture(0)  # /dev/video0
-capR = cv2.VideoCapture(2)
-
-# Set resolution
-capL.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-capL.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-capR.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-capR.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+capL = setup_camera(0, frame_width=1080, frame_height=720)
+capR = setup_camera(2, frame_width=1080, frame_height=720)
 
 # Read one frame to get size
 retL, frameL = capL.read()
@@ -107,7 +102,8 @@ while True:
     for y in range(0, combined.shape[0], 40):
         cv2.line(combined, (0, y), (combined.shape[1], y), (0, 255, 0), 1)
 
-    cv2.imshow("Stereo Rectified + Disparity", combined)
+    combined_resized = cv2.resize(combined, (1600, 400))  # 寬可自定，依你螢幕分辨率調整
+    cv2.imshow("Stereo Rectified + Disparity", combined_resized)
 
     if recording:
         frame_name = f"{frame_count:04d}"

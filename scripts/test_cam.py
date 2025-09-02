@@ -4,7 +4,7 @@ import time
 from calibration.camera_utils import setup_camera
 
 # ======= 設定 =======
-device_id = 2
+device_id = 0
 if device_id == 0:
     save_dir = "../outputs/captured_frames_left"
 else:

@@ -20,15 +20,15 @@ objpoints = []
 imgpoints_left = []
 imgpoints_right = []
 
-config_file = "../../configs/stereo_camera_1080p.yaml"
+config_file = "../../configs/stereo_camera_720p.yaml"
 
 # 載入左右相機內參（stereo_camera.yaml，R/T 不存在也沒關係）
 mtxL, distL, mtxR, distR, _, _ = load_stereo_parameters(config_file)
 print("Left Camera Matrix:\n", mtxL)
 
 # 開啟左右相機（調整索引為實際相機）
-capL = setup_camera(0, frame_width=1600, frame_height=1200) # /dev/video0
-capR = setup_camera(2, frame_width=1600, frame_height=1200)  # /dev/video2
+capL = setup_camera(0, frame_width=1080, frame_height=720) # /dev/video0
+capR = setup_camera(2, frame_width=1080, frame_height=720)  # /dev/video2
 
 print("[INFO] 按空白鍵擷取一組圖像角點。擷取完成後按 Enter ⏎ 執行 stereo calibration。")
 
